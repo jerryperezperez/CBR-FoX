@@ -114,8 +114,7 @@ class cbr_fox:
         components_len = windows.shape[2]
         window_len = windows.shape[1]
         windows_len = len(windows)
-        # TODO Revisar si target_window debe ser enviado como argumento a _compute_cbr_analysis
-        # TODO Revisar si target debe ser enviado como argumento a _compute_distance
+
         self.__correlation_per_window = self._compute_distance(windows, windows_len, components_len, target)
         self._compute_cbr_analysis(windows_len)
         self._compute_statistics(num_cases, target_window,target)
