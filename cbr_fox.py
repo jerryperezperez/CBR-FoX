@@ -51,11 +51,11 @@ class cbr_fox:
             self.worst_windows_index.append(int(split[np.where(split == min(split[:, 1]))[0][0], 0]))
 
     # TODO Analizar si este método puede ser el único que permita realizar asignaciones de variable internamente
-    def _compute_statistics(self, num_cases: int, predictionTargetWindow: np.ndarray, target: np.ndarray):
+    def _compute_statistics(self, target_training_windows: np.ndarray, forecasted_window: np.ndarray, prediction: np.ndarray, num_cases: int):
 
-        self.bestDic = {index: self.smoothed_correlation[index] for index in self.best_windows_index}
+        self.bestDic = {index: self.__correlation_per_window[index] for index in self.best_windows_index}
 
-        self.worstDic = {index: self.smoothed_correlation[index] for index in self.worst_windows_index}
+        self.worstDic = {index: self.__correlation_per_window[index] for index in self.worst_windows_index}
 
         self.bestDic = sorted(self.bestDic.items(), reverse=True, key=lambda x: x[1])
 
@@ -67,11 +67,11 @@ class cbr_fox:
         print("Calculando MAE para cada ventana")
         for tupla in self.bestDic:
             self.bestMAE.append(
-                mean_absolute_error(target[tupla[0]], predictionTargetWindow.reshape(-1, 1)))
+                mean_absolute_error(target_training_windows[tupla[0]], prediction.reshape(-1, 1)))
 
         for tupla in self.worstDic:
             self.worstMAE.append(
-                mean_absolute_error(target[tupla[0]], predictionTargetWindow.reshape(-1, 1)))
+                mean_absolute_error(target_training_windows[tupla[0]], prediction.reshape(-1, 1)))
 
         print("Generando reporte de análisis")
         # Version with method name as column name
@@ -109,15 +109,15 @@ class cbr_fox:
     # PUBLIC METHODS. ALL THESE METHODS ARE PROVIDED FOR THE USER
 
     # Main method. This method allows to the user to perform the primary function. User need to invoke it in order to call others public methods
-    def explain(self, windows: np.ndarray, target_window: np.ndarray, target: np.ndarray, num_cases: int):
+    def explain(self, training_windows: np.ndarray, target_training_windows: np.ndarray, forecasted_window: np.ndarray, prediction: np.ndarray, num_cases: int):
         # gather some basic data from passed in variables
-        components_len = windows.shape[2]
-        window_len = windows.shape[1]
-        windows_len = len(windows)
+        components_len = training_windows.shape[2]
+        window_len = training_windows.shape[1]
+        windows_len = len(training_windows)
 
-        self.__correlation_per_window = self._compute_distance(windows, windows_len, components_len, target)
+        self.__correlation_per_window = self._compute_distance(training_windows, windows_len, components_len, forecasted_window)
         self._compute_cbr_analysis(windows_len)
-        self._compute_statistics(num_cases, target_window,target)
+        self._compute_statistics(target_training_windows, forecasted_window, prediction, num_cases)
 
     # Method to print a chart or graphic based on results stored in variables. These methods are not strictly necessary
     #   for underlying functionality
