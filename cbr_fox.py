@@ -28,6 +28,20 @@ class cbr_fox:
         #Private variables for easy access by private methods
         self.__correlation_per_window = None
     # PRIVATE METHODS. ALL THESE METHODS ARE USED INTERNALLY FOR PROCESSING AND ANALYSIS
+
+    def _preprocess_input_data(self, training_windows, target_training_windows, forecasted_window, prediction, num_cases):
+        # gather some basic data from passed in variables
+        input_data_dictionary = dict()
+        input_data_dictionary['training_windows'] = training_windows
+        input_data_dictionary['target_training_windows'] = target_training_windows
+        input_data_dictionary['forecasted_window'] = forecasted_window
+        input_data_dictionary['prediction'] = prediction
+        input_data_dictionary['num_cases'] = num_cases
+        input_data_dictionary['components_len'] = training_windows.shape[2]
+        input_data_dictionary['window_len'] = training_windows.shape[1]
+        input_data_dictionary['windows_len'] = len(training_windows)
+
+        return input_data_dictionary
     def _smoothe_correlation(self):
         return lowess(self.__correlation_per_window, np.arange(len(self.__correlation_per_window)),
                       self.smoothness_factor)[:, 1]
@@ -53,7 +67,7 @@ class cbr_fox:
             self.worst_windows_index.append(int(split[np.where(split == min(split[:, 1]))[0][0], 0]))
 
     # TODO Analizar si este método puede ser el único que permita realizar asignaciones de variable internamente
-    def _compute_statistics(self, target_training_windows: np.ndarray, forecasted_window: np.ndarray, prediction: np.ndarray, num_cases: int):
+    def _compute_statistics(self, input_data_dictionary):
 
         self.bestDic = {index: self.__correlation_per_window[index] for index in self.best_windows_index}
 
@@ -63,17 +77,17 @@ class cbr_fox:
 
         self.worstDic = sorted(self.worstDic.items(), key=lambda x: x[1])
 
-        self.bestDic = self.bestDic[0:num_cases]
-        self.worstDic = self.worstDic[0:num_cases]
+        self.bestDic = self.bestDic[0:input_data_dictionary['num_cases']]
+        self.worstDic = self.worstDic[0:input_data_dictionary['num_cases']]
 
         print("Calculando MAE para cada ventana")
         for tupla in self.bestDic:
             self.bestMAE.append(
-                mean_absolute_error(target_training_windows[tupla[0]], prediction.reshape(-1, 1)))
+                mean_absolute_error(input_data_dictionary["target_training_windows"][tupla[0]], input_data_dictionary["prediction"].reshape(-1, 1)))
 
         for tupla in self.worstDic:
             self.worstMAE.append(
-                mean_absolute_error(target_training_windows[tupla[0]], prediction.reshape(-1, 1)))
+                mean_absolute_error(input_data_dictionary["target_training_windows"][tupla[0]], input_data_dictionary["prediction"].reshape(-1, 1)))
 
         print("Generando reporte de análisis")
         # Version with method name as column name
@@ -89,18 +103,18 @@ class cbr_fox:
         # "MAE.1": self.worstMAE
         self.analysisReport = pd.DataFrame(data=d)
 
-    def _compute_cbr_analysis(self, windows_len: int):
+    def _compute_cbr_analysis(self, input_data_dictionary):
         self.smoothed_correlation = self._smoothe_correlation()
         self.valley_index, self.peak_index = self._identify_valleys_peaks_indexes()
-        self._retreive_concave_convex_segments(windows_len)
+        self._retreive_concave_convex_segments(input_data_dictionary['windows_len'])
         self._retreive_original_indexes()
 
 
-    def _compute_correlation(self, windows: np.ndarray, windows_len, components_len, target: None):
+    def _compute_correlation(self, input_data_dictionary):
 
         # Implementing interface architecture to reduce tight coupling.
 
-        correlation_per_window = sktime_interface.compute_distance_interface(windows, windows_len, components_len, target, self.metric, self.kwargs)
+        correlation_per_window = sktime_interface.compute_distance_interface(input_data_dictionary, self.metric, self.kwargs)
         correlation_per_window = np.sum(correlation_per_window, axis=1)
         correlation_per_window = ((correlation_per_window-min(correlation_per_window))/
                                   (max(correlation_per_window)-min(correlation_per_window)))
@@ -110,14 +124,12 @@ class cbr_fox:
 
     # Main method. This method allows to the user to perform the primary function. User need to invoke it in order to call others public methods
     def explain(self, training_windows: np.ndarray, target_training_windows: np.ndarray, forecasted_window: np.ndarray, prediction: np.ndarray, num_cases: int):
-        # gather some basic data from passed in variables
-        components_len = training_windows.shape[2]
-        window_len = training_windows.shape[1]
-        windows_len = len(training_windows)
 
-        self.__correlation_per_window = self._compute_correlation(training_windows, windows_len, components_len, forecasted_window)
-        self._compute_cbr_analysis(windows_len)
-        self._compute_statistics(target_training_windows, forecasted_window, prediction, num_cases)
+        input_data_dictionary = self._preprocess_input_data(training_windows, target_training_windows, forecasted_window, prediction, num_cases)
+
+        self.__correlation_per_window = self._compute_correlation(input_data_dictionary)
+        self._compute_cbr_analysis(input_data_dictionary)
+        self._compute_statistics(input_data_dictionary)
 
     # Method to print a chart or graphic based on results stored in variables. These methods are not strictly necessary
     #   for underlying functionality
