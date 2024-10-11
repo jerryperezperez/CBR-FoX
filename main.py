@@ -33,7 +33,7 @@ target = np.random.rand(10)  # Target values for training, aligned with num_case
 
 instance = cbr_fox("dtw")
 instance_2 = cbr_fox("dtw")
-
+# instance_2 = cbr_fox(cci_distance, kwargs={"punishedSumFactor":.5})
 instance_2.explain(training_windows, target_training_windows, forecasted_window, prediction, num_cases)
 # Example of using the create_multiple method
 techniques = [("dtw", {}), ("CCI", {}), ("other_technique", {})]

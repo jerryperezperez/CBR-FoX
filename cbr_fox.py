@@ -4,6 +4,8 @@ from sklearn.metrics import mean_absolute_error
 from sktime.distances import distance
 from scipy import signal
 from statsmodels.nonparametric.smoothers_lowess import lowess
+from custom_distance import sktime_interface
+
 
 # TODO Revisar si es conveniente agregar como atributo de clase a correlation_per_windows para facilitar el acceso en los métodos
 # o si por tema de memoria sería adecuado solo almacenar smoothed_correlation
@@ -81,7 +83,7 @@ class cbr_fox:
         # Version 1.0 when CCI was the only one method defined
         # TODO Atender impresión de nombre de acuerdo su tipo (String o Callable)
         # TODO Verificar correcto funcionamiento de creación del objeto Dataframe
-        d = {'index': dict(self.bestDic).keys(), self.method: dict(self.bestDic).values(), "MAE": self.bestMAE}
+        d = {'index': dict(self.bestDic).keys(), self.metric: dict(self.bestDic).values(), "MAE": self.bestMAE}
         # The worst indices were disabled in order to remove the duplicated keys such as index.1 and so forth
         # 'index.1': dict(self.worstSorted).keys(), 'other': dict(self.worstSorted).values(),
         # "MAE.1": self.worstMAE
@@ -94,13 +96,11 @@ class cbr_fox:
         self._retreive_original_indexes()
 
 
-    def _compute_distance(self, windows: np.ndarray,windows_len, components_len, target: None):
-        correlation_per_window = np.array(([distance(target[:, current_component],
-                                                        windows[current_window, :, current_component], self.metric,
-                                                        **self.kwargs)
-                                               for current_window in range(windows_len)
-                                               for current_component in range(components_len)])).reshape(-1,
-                                                                                                             components_len)
+    def _compute_correlation(self, windows: np.ndarray, windows_len, components_len, target: None):
+
+        # Implementing interface architecture to reduce tight coupling.
+
+        correlation_per_window = sktime_interface.compute_distance_interface(windows, windows_len, components_len, target, self.metric, self.kwargs)
         correlation_per_window = np.sum(correlation_per_window, axis=1)
         correlation_per_window = ((correlation_per_window-min(correlation_per_window))/
                                   (max(correlation_per_window)-min(correlation_per_window)))
@@ -115,7 +115,7 @@ class cbr_fox:
         window_len = training_windows.shape[1]
         windows_len = len(training_windows)
 
-        self.__correlation_per_window = self._compute_distance(training_windows, windows_len, components_len, forecasted_window)
+        self.__correlation_per_window = self._compute_correlation(training_windows, windows_len, components_len, forecasted_window)
         self._compute_cbr_analysis(windows_len)
         self._compute_statistics(target_training_windows, forecasted_window, prediction, num_cases)
 
