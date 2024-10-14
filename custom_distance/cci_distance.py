@@ -4,7 +4,8 @@ import sktime_interface
 def cci_distance(input_data_dictionary, punishedSumFactor):
     print("Calculando correlación de Pearson")
 
-    pearsonCorrelation = sktime_interface.compute_distance_interface(input_data_dictionary, "pearson")
+    # pearsonCorrelation = sktime_interface.compute_distance_interface(input_data_dictionary, "pearson")
+    pearsonCorrelation = sktime_interface.compute_distance_interface(input_data_dictionary, sktime_interface.pearson)
 
     print("Calculando distancia Euclidiana")
     euclideanDistance = sktime_interface.compute_distance_interface(input_data_dictionary, "euclidean")
