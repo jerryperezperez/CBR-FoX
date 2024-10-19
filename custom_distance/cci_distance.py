@@ -1,5 +1,5 @@
 import numpy as np
-import sktime_interface
+from custom_distance import sktime_interface
 
 def cci_distance(input_data_dictionary, punishedSumFactor):
     print("Calculando correlación de Pearson")
@@ -13,6 +13,10 @@ def cci_distance(input_data_dictionary, punishedSumFactor):
 
     normalizedCorrelation = (.5 + (pearsonCorrelation - 2 * normalizedEuclideanDistance + 1) / 4)
 
+    # TODO Necesario investigar si es la única forma de resolver este problema, así como si se puede atender desde otras secciones del código
+    # To overcome 1-d arrays
+    if(normalizedCorrelation.ndim == 1):
+        normalizedCorrelation = normalizedCorrelation.reshape(-1,1)
     correlationPerWindow = np.sum(((normalizedCorrelation + punishedSumFactor) ** 2), axis=1)
     # Applying scale
     correlationPerWindow = (correlationPerWindow - min(correlationPerWindow)) / (max(correlationPerWindow)-min(correlationPerWindow))
