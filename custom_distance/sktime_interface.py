@@ -25,7 +25,7 @@ def compute_distance_interface(input_data_dictionary,
     try:
         # Sustituido por distance_process. De todas formas, verificar funcionalidad
         correlation_per_window = distance_sktime_interface(input_data_dictionary, metric, kwargs)
-    except Exception as e:
+    except IndexError as e:
         print(f"String or callable object is not valid for sktime library: {e}")
         try:
             correlation_per_window = metric(input_data_dictionary, **kwargs)

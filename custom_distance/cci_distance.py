@@ -15,9 +15,10 @@ def cci_distance(input_data_dictionary, punishedSumFactor):
 
     # TODO Necesario investigar si es la única forma de resolver este problema, así como si se puede atender desde otras secciones del código
     # To overcome 1-d arrays
-    if(normalizedCorrelation.ndim == 1):
-        normalizedCorrelation = normalizedCorrelation.reshape(-1,1)
+    print("Prueba")
     correlationPerWindow = np.sum(((normalizedCorrelation + punishedSumFactor) ** 2), axis=1)
+    if (correlationPerWindow.ndim == 1):
+        correlationPerWindow = correlationPerWindow.reshape(-1, 1)
     # Applying scale
     correlationPerWindow = (correlationPerWindow - min(correlationPerWindow)) / (max(correlationPerWindow)-min(correlationPerWindow))
     return correlationPerWindow

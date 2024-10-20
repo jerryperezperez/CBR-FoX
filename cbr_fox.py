@@ -81,6 +81,7 @@ class cbr_fox:
         self.worstDic = self.worstDic[0:input_data_dictionary['num_cases']]
 
         print("Calculando MAE para cada ventana")
+
         for tupla in self.bestDic:
             self.bestMAE.append(
                 mean_absolute_error(input_data_dictionary["target_training_windows"][tupla[0]], input_data_dictionary["prediction"].reshape(-1, 1)))
@@ -113,7 +114,6 @@ class cbr_fox:
     def _compute_correlation(self, input_data_dictionary):
 
         # Implementing interface architecture to reduce tight coupling.
-
         correlation_per_window = sktime_interface.compute_distance_interface(input_data_dictionary, self.metric, self.kwargs)
         correlation_per_window = np.sum(correlation_per_window, axis=1)
         correlation_per_window = ((correlation_per_window-min(correlation_per_window))/
