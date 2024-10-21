@@ -25,11 +25,16 @@ class cbr_fox:
         self.worst_windows_index = list()
         self.bestMAE = list()
         self.worstMAE = list()
-        #Private variables for easy access by private methods
+        # Private variables for easy access by private methods
         self.__correlation_per_window = None
-    # PRIVATE METHODS. ALL THESE METHODS ARE USED INTERNALLY FOR PROCESSING AND ANALYSIS
+        self.dtype = [('index', 'i4'),
+                      ('window', 'O'),
+                      ('correlation', 'f8'),
+                      ('MAE', 'f8')]
+        # PRIVATE METHODS. ALL THESE METHODS ARE USED INTERNALLY FOR PROCESSING AND ANALYSIS
 
-    def _preprocess_input_data(self, training_windows, target_training_windows, forecasted_window, prediction, num_cases):
+    def _preprocess_input_data(self, training_windows, target_training_windows, forecasted_window, prediction,
+                               num_cases):
         # gather some basic data from passed in variables
         input_data_dictionary = dict()
         input_data_dictionary['training_windows'] = training_windows
@@ -42,6 +47,7 @@ class cbr_fox:
         input_data_dictionary['windows_len'] = len(training_windows)
 
         return input_data_dictionary
+
     def _smoothe_correlation(self):
         return lowess(self.__correlation_per_window, np.arange(len(self.__correlation_per_window)),
                       self.smoothness_factor)[:, 1]
@@ -66,43 +72,50 @@ class cbr_fox:
         for split in self.convexSegments:
             self.worst_windows_index.append(int(split[np.where(split == min(split[:, 1]))[0][0], 0]))
 
+    def calculate_analysis(self, indexes, input_data_dictionary):
+        records = np.array([[index,
+                             input_data_dictionary["target_training_windows"][index],
+                             self.__correlation_per_window[index],
+                             mean_absolute_error(input_data_dictionary["target_training_windows"][index],
+                                                 input_data_dictionary["prediction"].reshape(-1, 1))]
+                            for index in indexes], dtype=self.dtype)
+
     # TODO Analizar si este método puede ser el único que permita realizar asignaciones de variable internamente
     def _compute_statistics(self, input_data_dictionary):
 
-        self.bestDic = {index: self.__correlation_per_window[index] for index in self.best_windows_index}
+        # self.bestDic = {index: self.__correlation_per_window[index] for index in self.best_windows_index}
+        #
+        # self.worstDic = {index: self.__correlation_per_window[index] for index in self.worst_windows_index}
+        #
+        # self.bestDic = sorted(self.bestDic.items(), reverse=True, key=lambda x: x[1])
+        #
+        # self.worstDic = sorted(self.worstDic.items(), key=lambda x: x[1])
+        #
+        # self.bestDic = self.bestDic[0:input_data_dictionary['num_cases']]
+        # self.worstDic = self.worstDic[0:input_data_dictionary['num_cases']]
+        #
+        # print("Calculando MAE para cada ventana")
+        #
+        # for tupla in self.bestDic:
+        #     self.bestMAE.append(
+        #         mean_absolute_error(input_data_dictionary["target_training_windows"][tupla[0]],
+        #                             input_data_dictionary["prediction"].reshape(-1, 1)))
+        #
+        # for tupla in self.worstDic:
+        #     self.worstMAE.append(
+        #         mean_absolute_error(input_data_dictionary["target_training_windows"][tupla[0]],
+        #                             input_data_dictionary["prediction"].reshape(-1, 1)))
 
-        self.worstDic = {index: self.__correlation_per_window[index] for index in self.worst_windows_index}
+        records_array = self.calculate_analysis(self.best_windows_index + self.worst_windows_index, input_data_dictionary)
 
-        self.bestDic = sorted(self.bestDic.items(), reverse=True, key=lambda x: x[1])
+        # Sorting the array
+        records_array = np.sort(records_array, order = "correlation")
 
-        self.worstDic = sorted(self.worstDic.items(), key=lambda x: x[1])
-
-        self.bestDic = self.bestDic[0:input_data_dictionary['num_cases']]
-        self.worstDic = self.worstDic[0:input_data_dictionary['num_cases']]
-
-        print("Calculando MAE para cada ventana")
-
-        for tupla in self.bestDic:
-            self.bestMAE.append(
-                mean_absolute_error(input_data_dictionary["target_training_windows"][tupla[0]], input_data_dictionary["prediction"].reshape(-1, 1)))
-
-        for tupla in self.worstDic:
-            self.worstMAE.append(
-                mean_absolute_error(input_data_dictionary["target_training_windows"][tupla[0]], input_data_dictionary["prediction"].reshape(-1, 1)))
+        # Selecting just the number of elements according to num_cases variable
+        records_array = records_array[:input_data_dictionary["num_cases"]] + records_array[-input_data_dictionary["num_cases"]:]
 
         print("Generando reporte de análisis")
-        # Version with method name as column name
-        # d = {'Index': dict(self.bestSorted).keys(), self.method: dict(self.bestSorted).values(), "Best MAE": self.bestMAE,
-        #      'Index': dict(self.worstSorted).keys(), self.method: dict(self.worstSorted).values(),
-        #      "Worst MAE": self.worstMAE}
-        # Version 1.0 when CCI was the only one method defined
-        # TODO Atender impresión de nombre de acuerdo su tipo (String o Callable)
-        # TODO Verificar correcto funcionamiento de creación del objeto Dataframe
-        d = {'index': dict(self.bestDic).keys(), self.metric: dict(self.bestDic).values(), "MAE": self.bestMAE}
-        # The worst indices were disabled in order to remove the duplicated keys such as index.1 and so forth
-        # 'index.1': dict(self.worstSorted).keys(), 'other': dict(self.worstSorted).values(),
-        # "MAE.1": self.worstMAE
-        self.analysisReport = pd.DataFrame(data=d)
+        self.analysisReport = pd.DataFrame(data=pd.DataFrame.from_records(records_array))
 
     def _compute_cbr_analysis(self, input_data_dictionary):
         self.smoothed_correlation = self._smoothe_correlation()
@@ -110,22 +123,24 @@ class cbr_fox:
         self._retreive_concave_convex_segments(input_data_dictionary['windows_len'])
         self._retreive_original_indexes()
 
-
     def _compute_correlation(self, input_data_dictionary):
 
         # Implementing interface architecture to reduce tight coupling.
-        correlation_per_window = sktime_interface.compute_distance_interface(input_data_dictionary, self.metric, self.kwargs)
+        correlation_per_window = sktime_interface.compute_distance_interface(input_data_dictionary, self.metric,
+                                                                             self.kwargs)
         correlation_per_window = np.sum(correlation_per_window, axis=1)
-        correlation_per_window = ((correlation_per_window-min(correlation_per_window))/
-                                  (max(correlation_per_window)-min(correlation_per_window)))
+        correlation_per_window = ((correlation_per_window - min(correlation_per_window)) /
+                                  (max(correlation_per_window) - min(correlation_per_window)))
         return correlation_per_window
 
     # PUBLIC METHODS. ALL THESE METHODS ARE PROVIDED FOR THE USER
 
     # Main method. This method allows to the user to perform the primary function. User need to invoke it in order to call others public methods
-    def explain(self, training_windows: np.ndarray, target_training_windows: np.ndarray, forecasted_window: np.ndarray, prediction: np.ndarray, num_cases: int):
+    def explain(self, training_windows: np.ndarray, target_training_windows: np.ndarray, forecasted_window: np.ndarray,
+                prediction: np.ndarray, num_cases: int):
 
-        input_data_dictionary = self._preprocess_input_data(training_windows, target_training_windows, forecasted_window, prediction, num_cases)
+        input_data_dictionary = self._preprocess_input_data(training_windows, target_training_windows,
+                                                            forecasted_window, prediction, num_cases)
 
         self.__correlation_per_window = self._compute_correlation(input_data_dictionary)
         self._compute_cbr_analysis(input_data_dictionary)
