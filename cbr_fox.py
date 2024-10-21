@@ -27,8 +27,10 @@ class cbr_fox:
         self.worstMAE = list()
         # Private variables for easy access by private methods
         self.__correlation_per_window = None
+        self.records_array = None
         self.dtype = [('index', 'i4'),
                       ('window', 'O'),
+                      ('target_window', 'O'),
                       ('correlation', 'f8'),
                       ('MAE', 'f8')]
         # PRIVATE METHODS. ALL THESE METHODS ARE USED INTERNALLY FOR PROCESSING AND ANALYSIS
@@ -73,12 +75,13 @@ class cbr_fox:
             self.worst_windows_index.append(int(split[np.where(split == min(split[:, 1]))[0][0], 0]))
 
     def calculate_analysis(self, indexes, input_data_dictionary):
-        records = np.array([[index,
-                             input_data_dictionary["target_training_windows"][index],
-                             self.__correlation_per_window[index],
-                             mean_absolute_error(input_data_dictionary["target_training_windows"][index],
-                                                 input_data_dictionary["prediction"].reshape(-1, 1))]
-                            for index in indexes], dtype=self.dtype)
+        self.records_array = np.array([[index,
+                                        input_data_dictionary["training_windows"][index],
+                                        input_data_dictionary["target_training_windows"][index],
+                                        self.__correlation_per_window[index],
+                                        mean_absolute_error(input_data_dictionary["target_training_windows"][index],
+                                                            input_data_dictionary["prediction"].reshape(-1, 1))]
+                                       for index in indexes], dtype=self.dtype)
 
     # TODO Analizar si este método puede ser el único que permita realizar asignaciones de variable internamente
     def _compute_statistics(self, input_data_dictionary):
@@ -106,16 +109,19 @@ class cbr_fox:
         #         mean_absolute_error(input_data_dictionary["target_training_windows"][tupla[0]],
         #                             input_data_dictionary["prediction"].reshape(-1, 1)))
 
-        records_array = self.calculate_analysis(self.best_windows_index + self.worst_windows_index, input_data_dictionary)
+        self.records_array = self.calculate_analysis(self.best_windows_index + self.worst_windows_index,
+                                                     input_data_dictionary)
 
         # Sorting the array
-        records_array = np.sort(records_array, order = "correlation")
+        self.records_array = np.sort(self.records_array, order="correlation")
 
         # Selecting just the number of elements according to num_cases variable
-        records_array = records_array[:input_data_dictionary["num_cases"]] + records_array[-input_data_dictionary["num_cases"]:]
+        self.records_array = self.records_array[:input_data_dictionary["num_cases"]] + self.records_array[
+                                                                                       -input_data_dictionary[
+                                                                                           "num_cases"]:]
 
         print("Generando reporte de análisis")
-        self.analysisReport = pd.DataFrame(data=pd.DataFrame.from_records(records_array))
+        self.analysisReport = pd.DataFrame(data=pd.DataFrame.from_records(self.records_array))
 
     def _compute_cbr_analysis(self, input_data_dictionary):
         self.smoothed_correlation = self._smoothe_correlation()
