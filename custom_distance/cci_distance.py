@@ -21,4 +21,6 @@ def cci_distance(input_data_dictionary, punishedSumFactor):
         correlationPerWindow = correlationPerWindow.reshape(-1, 1)
     # Applying scale
     correlationPerWindow = (correlationPerWindow - min(correlationPerWindow)) / (max(correlationPerWindow)-min(correlationPerWindow))
+    # line to simulate correlation. Must be deleted
+    #correlationPerWindow = np.sin(np.linspace(0, 10 * np.pi, 35000)).reshape(-1, 1)
     return correlationPerWindow

@@ -26,7 +26,7 @@ class cbr_fox:
         self.bestMAE = list()
         self.worstMAE = list()
         # Private variables for easy access by private methods
-        self.__correlation_per_window = None
+        self.correlation_per_window = None
         self.records_array = None
         self.dtype = [('index', 'i4'),
                       ('window', 'O'),
@@ -75,12 +75,12 @@ class cbr_fox:
             self.worst_windows_index.append(int(split[np.where(split == min(split[:, 1]))[0][0], 0]))
 
     def calculate_analysis(self, indexes, input_data_dictionary):
-        self.records_array = np.array([[index,
+        return np.array([(index,
                                         input_data_dictionary["training_windows"][index],
                                         input_data_dictionary["target_training_windows"][index],
-                                        self.__correlation_per_window[index],
+                                        self.correlation_per_window[index],
                                         mean_absolute_error(input_data_dictionary["target_training_windows"][index],
-                                                            input_data_dictionary["prediction"].reshape(-1, 1))]
+                                                            input_data_dictionary["prediction"].reshape(-1, 1)))
                                        for index in indexes], dtype=self.dtype)
 
     # TODO Analizar si este método puede ser el único que permita realizar asignaciones de variable internamente
@@ -113,12 +113,14 @@ class cbr_fox:
                                                      input_data_dictionary)
 
         # Sorting the array
-        self.records_array = np.sort(self.records_array, order="correlation")
+        self.records_array = np.sort(self.records_array, order="correlation")[::-1]
 
         # Selecting just the number of elements according to num_cases variable
-        self.records_array = self.records_array[:input_data_dictionary["num_cases"]] + self.records_array[
-                                                                                       -input_data_dictionary[
-                                                                                           "num_cases"]:]
+        # The conditional is to avoid duplicity in case records_arrays's shape is not greater than the selected num_cases
+        if (self.records_array.shape[0] > (input_data_dictionary["num_cases"]*2)):
+            self.records_array = np.concatenate((self.records_array[:input_data_dictionary["num_cases"]], self.records_array[
+                                                                                                     -input_data_dictionary[
+                                                                                                         "num_cases"]:]))
 
         print("Generando reporte de análisis")
         self.analysisReport = pd.DataFrame(data=pd.DataFrame.from_records(self.records_array))
@@ -137,6 +139,7 @@ class cbr_fox:
         correlation_per_window = np.sum(correlation_per_window, axis=1)
         correlation_per_window = ((correlation_per_window - min(correlation_per_window)) /
                                   (max(correlation_per_window) - min(correlation_per_window)))
+        self.correlation_per_window = correlation_per_window
         return correlation_per_window
 
     # PUBLIC METHODS. ALL THESE METHODS ARE PROVIDED FOR THE USER
@@ -154,7 +157,7 @@ class cbr_fox:
 
     # Method to print a chart or graphic based on results stored in variables. These methods are not strictly necessary
     #   for underlying functionality
-    def visualize(self):
+    def visualize_correlation_per_window(self, plt_oject):
         pass
 
     def get_analysis_report(self):
