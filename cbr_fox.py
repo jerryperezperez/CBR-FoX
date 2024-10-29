@@ -27,6 +27,7 @@ class cbr_fox:
         self.worstMAE = list()
         # Private variables for easy access by private methods
         self.correlation_per_window = None
+        self.input_data_dictionary = None
         self.records_array = None
         self.dtype = [('index', 'i4'),
                       ('window', 'O'),
@@ -35,15 +36,12 @@ class cbr_fox:
                       ('MAE', 'f8')]
         # PRIVATE METHODS. ALL THESE METHODS ARE USED INTERNALLY FOR PROCESSING AND ANALYSIS
 
-    def _preprocess_input_data(self, training_windows, target_training_windows, forecasted_window, prediction,
-                               num_cases):
+    def _preprocess_input_data(self, training_windows, target_training_windows, forecasted_window):
         # gather some basic data from passed in variables
         input_data_dictionary = dict()
         input_data_dictionary['training_windows'] = training_windows
         input_data_dictionary['target_training_windows'] = target_training_windows
         input_data_dictionary['forecasted_window'] = forecasted_window
-        input_data_dictionary['prediction'] = prediction
-        input_data_dictionary['num_cases'] = num_cases
         input_data_dictionary['components_len'] = training_windows.shape[2]
         input_data_dictionary['window_len'] = training_windows.shape[1]
         input_data_dictionary['windows_len'] = len(training_windows)
@@ -148,12 +146,25 @@ class cbr_fox:
     def explain(self, training_windows: np.ndarray, target_training_windows: np.ndarray, forecasted_window: np.ndarray,
                 prediction: np.ndarray, num_cases: int):
 
-        input_data_dictionary = self._preprocess_input_data(training_windows, target_training_windows,
+        self.input_data_dictionary = self._preprocess_input_data(training_windows, target_training_windows,
                                                             forecasted_window, prediction, num_cases)
 
-        self.__correlation_per_window = self._compute_correlation(input_data_dictionary)
-        self._compute_cbr_analysis(input_data_dictionary)
-        self._compute_statistics(input_data_dictionary)
+        self.__correlation_per_window = self._compute_correlation(self.input_data_dictionary)
+        self._compute_cbr_analysis(self.input_data_dictionary)
+        self._compute_statistics(self.input_data_dictionary)
+
+    def fit(self, training_windows: np.ndarray, target_training_windows: np.ndarray, forecasted_window: np.ndarray):
+
+        self.input_data_dictionary = self._preprocess_input_data(training_windows, target_training_windows,
+                                                            forecasted_window)
+
+        self.__correlation_per_window = self._compute_correlation(self.input_data_dictionary)
+        self._compute_cbr_analysis(self.input_data_dictionary)
+
+    def predict(self,prediction, num_cases: int):
+        self.input_data_dictionary['prediction'] = prediction
+        self.input_data_dictionary['num_cases'] = num_cases
+        self._compute_statistics(self.input_data_dictionary)
 
     # Method to print a chart or graphic based on results stored in variables. These methods are not strictly necessary
     #   for underlying functionality

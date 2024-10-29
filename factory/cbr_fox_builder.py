@@ -1,7 +1,7 @@
 from cbr_fox import cbr_fox
 import plotly.graph_objects as go
 import numpy as np
-class cbr_fox_factory:
+class cbr_fox_builder:
     def __init__(self, techniques):
         # Store techniques as a dictionary, where the key is the technique name and the value is the cbr_fox object
         self.techniques_dict = dict()
@@ -16,7 +16,14 @@ class cbr_fox_factory:
             self.techniques_dict[name].explain(training_windows, target_training_windows, forecasted_window, prediction, num_cases)
         print("exito")
 
-
+    def fit(self, training_windows, target_training_windows, forecasted_window):
+        for name in self.techniques_dict:
+            self.techniques_dict[name].fit(training_windows, target_training_windows, forecasted_window)
+        print("exito")
+    def predict(self, prediction, num_cases):
+        for name in self.techniques_dict:
+            self.techniques_dict[name].predict(prediction, num_cases)
+        print("exito")
     # Override __getitem__ to allow dictionary-like access
     def __getitem__(self, technique_name):
         # Return the corresponding cbr_fox object for the requested technique
