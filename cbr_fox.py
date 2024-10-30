@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_absolute_error
@@ -5,8 +7,9 @@ from sktime.distances import distance
 from scipy import signal
 from statsmodels.nonparametric.smoothers_lowess import lowess
 from custom_distance import sktime_interface
+from tqdm import tqdm
 
-
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 # TODO Revisar si es conveniente agregar como atributo de clase a correlation_per_windows para facilitar el acceso en los métodos
 # o si por tema de memoria sería adecuado solo almacenar smoothed_correlation
 
@@ -67,9 +70,9 @@ class cbr_fox:
 
     # TODO Analizar si conviene hacer que retorne los valores y luego asigne, con único fin de seguir el estándar
     def _retreive_original_indexes(self):
-        for split in self.concaveSegments:
+        for split in tqdm(self.concaveSegments, desc="Segmentos cóncavos"):
             self.best_windows_index.append(int(split[np.where(split == max(split[:, 1]))[0][0], 0]))
-        for split in self.convexSegments:
+        for split in tqdm(self.convexSegments, desc="Segmentos cóncavos"):
             self.worst_windows_index.append(int(split[np.where(split == min(split[:, 1]))[0][0], 0]))
 
     def calculate_analysis(self, indexes, input_data_dictionary):
@@ -124,9 +127,13 @@ class cbr_fox:
         self.analysisReport = pd.DataFrame(data=pd.DataFrame.from_records(self.records_array))
 
     def _compute_cbr_analysis(self, input_data_dictionary):
+        logging.info("Suavizando Correlación")
         self.smoothed_correlation = self._smoothe_correlation()
+        logging.info("Extrayendo crestas y valles")
         self.valley_index, self.peak_index = self._identify_valleys_peaks_indexes()
+        logging.info("Recuperando segmentos convexos y cóncavos")
         self._retreive_concave_convex_segments(input_data_dictionary['windows_len'])
+        logging.info("Recuperando índices originales de correlación")
         self._retreive_original_indexes()
 
     def _compute_correlation(self, input_data_dictionary):
@@ -142,24 +149,17 @@ class cbr_fox:
 
     # PUBLIC METHODS. ALL THESE METHODS ARE PROVIDED FOR THE USER
 
-    # Main method. This method allows to the user to perform the primary function. User need to invoke it in order to call others public methods
-    def explain(self, training_windows: np.ndarray, target_training_windows: np.ndarray, forecasted_window: np.ndarray,
-                prediction: np.ndarray, num_cases: int):
-
-        self.input_data_dictionary = self._preprocess_input_data(training_windows, target_training_windows,
-                                                            forecasted_window, prediction, num_cases)
-
-        self.__correlation_per_window = self._compute_correlation(self.input_data_dictionary)
-        self._compute_cbr_analysis(self.input_data_dictionary)
-        self._compute_statistics(self.input_data_dictionary)
-
     def fit(self, training_windows: np.ndarray, target_training_windows: np.ndarray, forecasted_window: np.ndarray):
 
+        logging.info("Analizando conjunto de datos")
         self.input_data_dictionary = self._preprocess_input_data(training_windows, target_training_windows,
-                                                            forecasted_window)
-
+                                                                         forecasted_window)
+        logging.info("Calculando Correlación")
         self.__correlation_per_window = self._compute_correlation(self.input_data_dictionary)
+        logging.info("Computando análisis de CBR")
         self._compute_cbr_analysis(self.input_data_dictionary)
+        logging.info("Análisis finalizado")
+
 
     def predict(self,prediction, num_cases: int):
         self.input_data_dictionary['prediction'] = prediction

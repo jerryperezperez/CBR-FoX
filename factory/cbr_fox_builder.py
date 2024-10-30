@@ -14,16 +14,16 @@ class cbr_fox_builder:
     def explan_all_techniques(self,  training_windows, target_training_windows, forecasted_window, prediction, num_cases):
         for name in self.techniques_dict:
             self.techniques_dict[name].explain(training_windows, target_training_windows, forecasted_window, prediction, num_cases)
-        print("exito")
+
 
     def fit(self, training_windows, target_training_windows, forecasted_window):
         for name in self.techniques_dict:
             self.techniques_dict[name].fit(training_windows, target_training_windows, forecasted_window)
-        print("exito")
+
     def predict(self, prediction, num_cases):
         for name in self.techniques_dict:
             self.techniques_dict[name].predict(prediction, num_cases)
-        print("exito")
+
     # Override __getitem__ to allow dictionary-like access
     def __getitem__(self, technique_name):
         # Return the corresponding cbr_fox object for the requested technique
