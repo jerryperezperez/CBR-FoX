@@ -11,7 +11,7 @@ class cbr_fox_builder:
             else:
                 self.techniques_dict[item.metric.__name__] = item
     
-    def explan_all_techniques(self,  training_windows, target_training_windows, forecasted_window, prediction, num_cases):
+    def explain_all_techniques(self,  training_windows, target_training_windows, forecasted_window, prediction, num_cases):
         for name in self.techniques_dict:
             self.techniques_dict[name].explain(training_windows, target_training_windows, forecasted_window, prediction, num_cases)
 

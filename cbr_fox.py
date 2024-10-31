@@ -24,6 +24,7 @@ class cbr_fox:
         # self.outputComponentsLen = len(outputNames)
         self.smoothed_correlation = None
         self.analysisReport = None
+        self.analysisReport_combined = None
         self.best_windows_index = list()
         self.worst_windows_index = list()
         self.bestMAE = list()
@@ -32,6 +33,7 @@ class cbr_fox:
         self.correlation_per_window = None
         self.input_data_dictionary = None
         self.records_array = None
+        self.records_array_combined = None
         self.dtype = [('index', 'i4'),
                       ('window', 'O'),
                       ('target_window', 'O'),
@@ -84,6 +86,22 @@ class cbr_fox:
                                                             input_data_dictionary["prediction"].reshape(-1, 1)))
                                        for index in indexes], dtype=self.dtype)
 
+
+    def calculate_analysis_combined(self, input_data_dictionary):
+       return np.array([(-index,
+           np.mean(input_data_dictionary["training_windows"][
+                   dic[:input_data_dictionary["num_cases"]]], axis=0),
+           np.mean(input_data_dictionary["target_training_windows"][
+                   dic[:input_data_dictionary["num_cases"]]], axis=0),
+           np.mean(self.correlation_per_window[
+                   dic[:input_data_dictionary["num_cases"]]]),
+           mean_absolute_error(
+               np.mean(input_data_dictionary["target_training_windows"][
+                       dic[:input_data_dictionary["num_cases"]]], axis=0),
+               input_data_dictionary["prediction"].reshape(-1, 1)
+           )
+          ) for index, dic in enumerate([self.best_windows_index,self.worst_windows_index])], dtype=self.dtype)
+
     # TODO Analizar si este método puede ser el único que permita realizar asignaciones de variable internamente
     def _compute_statistics(self, input_data_dictionary):
 
@@ -110,6 +128,8 @@ class cbr_fox:
         #         mean_absolute_error(input_data_dictionary["target_training_windows"][tupla[0]],
         #                             input_data_dictionary["prediction"].reshape(-1, 1)))
 
+        self.records_array_combined = self.calculate_analysis_combined(input_data_dictionary)
+
         self.records_array = self.calculate_analysis(self.best_windows_index + self.worst_windows_index,
                                                      input_data_dictionary)
 
@@ -120,11 +140,12 @@ class cbr_fox:
         # The conditional is to avoid duplicity in case records_arrays's shape is not greater than the selected num_cases
         if (self.records_array.shape[0] > (input_data_dictionary["num_cases"]*2)):
             self.records_array = np.concatenate((self.records_array[:input_data_dictionary["num_cases"]], self.records_array[
-                                                                                                     -input_data_dictionary[
-                                                                                                         "num_cases"]:]))
+                                                                                                 -input_data_dictionary[
+                                                                                                     "num_cases"]:]))
 
         print("Generando reporte de análisis")
         self.analysisReport = pd.DataFrame(data=pd.DataFrame.from_records(self.records_array))
+        self.analysisReport_combined = pd.DataFrame(data=pd.DataFrame.from_records(self.records_array_combined))
 
     def _compute_cbr_analysis(self, input_data_dictionary):
         logging.info("Suavizando Correlación")
@@ -173,3 +194,6 @@ class cbr_fox:
 
     def get_analysis_report(self):
         return self.analysisReport
+
+    def get_analysis_report_combined(self):
+        return self.analysisReport_combined
